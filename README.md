@@ -45,7 +45,7 @@ python3 main.py --serve
 | `GET` | `/stats` | View real-time graph statistics |
 | `GET` | `/emerge` | ASI emergence checklist status |
 | `GET` | `/health` | Basic liveness check |
-
+warning not a toy
 ## Installation
 
 Ensure you have Python 3.10+ installed.
