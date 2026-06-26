@@ -32,6 +32,9 @@ from engine.api.handlers import (
     handle_query, handle_index, handle_search, handle_ingest,
     handle_stats, handle_emerge, handle_resonance, handle_world,
     handle_backup,
+    handle_mana_status, handle_mana_start_intake, handle_mana_stop_intake,
+    handle_mana_wallet, handle_mana_wallet_generate, handle_mana_formula,
+    handle_mana_connections, handle_mana_send, handle_mana_narrative,
 )
 from engine.auth.auth import AuthManager
 from engine.core.graph import NodeGraph
@@ -52,7 +55,16 @@ ROUTES: dict[tuple[str, str], tuple] = {
     ("GET",  "/emerge"):      (handle_emerge,        True),
     ("GET",  "/resonance"):   (handle_resonance,     True),
     ("GET",  "/world"):       (handle_world,         True),
-    ("POST", "/backup"):      (handle_backup,        True),
+    ("POST", "/backup"):      (handle_backup,            True),
+    ("GET",  "/mana/status"): (handle_mana_status,       True),
+    ("POST", "/mana/start"):  (handle_mana_start_intake, True),
+    ("POST", "/mana/stop"):   (handle_mana_stop_intake,  True),
+    ("GET",  "/mana/wallet"): (handle_mana_wallet,       True),
+    ("POST", "/mana/wallet/generate"): (handle_mana_wallet_generate, True),
+    ("POST", "/mana/formula"): (handle_mana_formula,    True),
+    ("GET",  "/mana/connections"): (handle_mana_connections, True),
+    ("POST", "/mana/send"):   (handle_mana_send,         True),
+    ("POST", "/mana/narrate"): (handle_mana_narrative,   True),
 }
 
 CORS_HEADERS = {

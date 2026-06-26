@@ -8,6 +8,17 @@ Ruleset reference: LLM_GATEWAY_RULESET.md § 6.3 (response format), § 7 (auth/r
 
 import time
 import logging
+from mana_ciel.wallet import ManaCielWallet
+from mana_ciel.intake import ManaCielIntake
+from mana_ciel.formula import narrative_profile, cumulative_intelligence
+from mana_ciel.sequence import TimeCompressionSequence
+from mana_ciel.narrative import NarrativeObserver
+from mana_ciel.coordinate import SynergyCoordinate
+
+_intake_instances: dict[int, ManaCielIntake] = {}
+
+def _get_intake(port: int) -> ManaCielIntake | None:
+    return _intake_instances.get(port)
 
 logger = logging.getLogger("light-asi.api.handlers")
 
@@ -181,3 +192,98 @@ def handle_backup(body, user, graph, auth, ingester):
         return 403, {"error": "Admin only."}
     summary = graph.backup()
     return 200, summary
+
+
+# ─── Mana Ciel ─────────────────────────────────────────────────────────────────
+
+def handle_mana_status(body, user, graph, auth, ingester):
+    port = int(body.get("port", 19753))
+    intake = _get_intake(port)
+    if intake:
+        return 200, intake.status()
+    return 200, {"detail": "Intake not started on this port", "port": port}
+
+
+def handle_mana_start_intake(body, user, graph, auth, ingester):
+    if user.role not in ("admin", "developer"):
+        return 403, {"error": "Insufficient privileges."}
+    port = int(body.get("port", 19753))
+    coord = body.get("coordinate")
+    if coord is not None:
+        coord = int(coord)
+
+    intake = ManaCielIntake(host=body.get("host", "0.0.0.0"), port=port, coordinate=coord,
+                             engine_graph=graph, engine_auth=auth)
+    _intake_instances[port] = intake
+    intake.start()
+    return 200, intake.status()
+
+
+def handle_mana_stop_intake(body, user, graph, auth, ingester):
+    port = int(body.get("port", 19753))
+    intake = _get_intake(port)
+    if not intake:
+        return 404, {"error": "Intake not found", "port": port}
+    intake.stop()
+    del _intake_instances[port]
+    return 200, {"status": "stopped", "port": port}
+
+
+def handle_mana_wallet(body, user, graph, auth, ingester):
+    wallet = ManaCielWallet()
+    latest = wallet.load_latest()
+    if not latest:
+        latest = wallet.generate()
+    return 200, {"wallet": latest, "history_count": len(wallet.load_all())}
+
+
+def handle_mana_wallet_generate(body, user, graph, auth, ingester):
+    if user.role not in ("admin", "developer"):
+        return 403, {"error": "Insufficient privileges."}
+    coord = body.get("coordinate")
+    if coord is not None:
+        coord = int(coord)
+    wallet = ManaCielWallet()
+    entry = wallet.generate(coord=coord)
+    return 201, {"wallet": entry}
+
+
+def handle_mana_formula(body, user, graph, auth, ingester):
+    text = body.get("text", "")
+    if not text:
+        return 400, {"error": "text is required"}
+    profile = narrative_profile(text)
+    return 200, profile
+
+
+def handle_mana_connections(body, user, graph, auth, ingester):
+    port = int(body.get("port", 19753))
+    intake = _get_intake(port)
+    if not intake:
+        return 404, {"error": "Intake not found", "port": port}
+    limit = int(body.get("limit", 100))
+    return 200, {"connections": intake.get_connections(limit=limit)}
+
+
+def handle_mana_send(body, user, graph, auth, ingester):
+    target = body.get("target", "")
+    message = body.get("message", "")
+    if not target or not message:
+        return 400, {"error": "target and message are required"}
+    port = int(body.get("port", 19753))
+    intake = _get_intake(port)
+    if not intake:
+        return 404, {"error": "Intake not found", "port": port}
+    result = intake.send_to_target(target, message)
+    return 200, result
+
+
+def handle_mana_narrative(body, user, graph, auth, ingester):
+    event = body.get("event", "manual_observation")
+    data = body.get("data", {})
+    port = int(body.get("port", 19753))
+    intake = _get_intake(port)
+    if not intake:
+        return 404, {"error": "Intake not found", "port": port}
+    point = intake.narrative.observe(event, data)
+    return 200, point
